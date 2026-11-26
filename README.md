@@ -94,7 +94,81 @@ const notify=(uid,m)=>{
 };
 const notifyAdmins=m=>{
   users.filter(u=>u.role==="Administrator").forEach(u=>notify(u.id,m));
-};
+};const SHEET_API =
+"https://script.google.com/macros/s/AKfycbwCdi6b3jLoi2nq71qoNv3KQ4WvDlDgDfqz1JU64fn99C5_5UgmkSAmTmCITFy9vQjL/exec"; fetch(SHEET_API,{
+  method:"POST",
+  headers:{
+    "Content-Type":"application/json"
+  },
+  body:JSON.stringify({
+    rid:rid,
+    title:v("t"),
+    category:v("c"),
+    description:v("d"),
+    location:v("l"),
+    priority:v("p"),
+    status:"Pending",
+    userId:S.user.id,
+    userName:S.user.name,
+    date:d,
+    assignedTo:"",
+    notes:""
+  })async function loadDatabase(){
+  if(!isAdm()) return;
+  const res = await fetch(SHEET_API);
+  const data = await res.json();
+  console.log(data);
+}if(isAdm()){
+   loadDatabase();
+}
+const tabs = isAdm()
+?
+[
+"Overview",
+"All concerns",
+"Database",
+"Legends",
+"Users",
+"Announcements",
+"Reports",
+"Activity",
+"Settings"
+]
+:
+isMt()
+?
+[
+"Assigned",
+"Notifications"
+]
+:
+[
+"My reports",
+"New concern",
+"Notifications"
+];
+});
+const ADMIN_TOKEN = "CIVICSNAP-ADMIN-2027";async function loadDatabase(){
+  if(!isAdm()) return;
+  const res = await fetch(
+    SHEET_API + "?token=" + ADMIN_TOKEN
+  );
+  const data = await res.json();function doGet(e){
+  if(e.parameter.token !== "CIVICSNAP-ADMIN-2027"){
+    return ContentService
+      .createTextOutput("Unauthorized");
+  }
+  var sheet = SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getSheetByName("Reports");
+  var data = sheet
+    .getDataRange()
+    .getValues();
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+}
 const toast=m=>{S.toast=m;render();setTimeout(()=>{S.toast="";render()},2200)};
 function go(v){S.view=v;S.err="";if(v==="app"){S.tab=isAdm()?"Overview":isMt()?"Assigned":"My reports"}render();scrollTo(0,0)}
 function theme(){const r=document.documentElement;const d=r.dataset.theme==="dark"||(!r.dataset.theme&&matchMedia("(prefers-color-scheme:dark)").matches);r.dataset.theme=d?"light":"dark"}
