@@ -95,7 +95,7 @@ const notify=(uid,m)=>{
 const notifyAdmins=m=>{
   users.filter(u=>u.role==="Administrator").forEach(u=>notify(u.id,m));
 };const SHEET_API =
-"https://script.google.com/macros/s/AKfycbwCdi6b3jLoi2nq71qoNv3KQ4WvDlDgDfqz1JU64fn99C5_5UgmkSAmTmCITFy9vQjL/exec"; fetch(SHEET_API,{
+"https://script.google.com/macros/s/AKfycbzEDUBoFf2Gu7G-JKK_0qurCa5_esi6InCoZISC-PmZoX9ykTtZ1aNjhjJzvj7ezzOF/exec"; fetch(SHEET_API,{
   method:"POST",
   headers:{
     "Content-Type":"application/json"
