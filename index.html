@@ -217,62 +217,19 @@ function form(){return `<div class="card" style="max-width:640px"><h2>Report a c
 <label for="im">Photos (one or more)</label><input id="im" type="file" accept="image/*" ${cfg.multi?"multiple":""} onchange="prev(this)"><div class="thumbs" id="pv">${S.draft.map(u=>`<img src="${u}" alt="Preview">`).join("")}</div>
 <button class="btn s" style="margin-top:14px" onclick="submit()">Submit concern</button>${S.err?`<div class="err">${S.err}</div>`:""}</div>`}
 function prev(i){S.draft=[...i.files].map(f=>URL.createObjectURL(f));document.getElementById("pv").innerHTML=S.draft.map(u=>`<img src="${u}" alt="Preview">`).join("")}
-function submit(){
- if(!v("t")||!v("d")||!v("l")){
-   S.err="Add a title, details, and a location.";
-   return render();
- }
- const nextNo=reps.reduce((max,r)=>Math.max(max,Number(r.rid.split("-").pop())||0),0)+1;
-  const rid="CS-2027-"+String(nextNo).padStart(4,"0");
- 
- const d=new Date().toLocaleDateString(
-   "en-PH",
-   {dateStyle:"medium"}
- );
-
- reps.unshift({
-   rid,
-   title:v("t"),
-   cat:v("c"),
-   desc:v("d"),
-   loc:v("l"),
-   pr:v("p"),
-   st:"Pending",
-   uid:S.user.id,
-   as:"",
-   imgs:S.draft,
-   hist:[
-     [
-       "Pending",
-       d
-     ]
-   ],
-   notes:[],
-   date:d,
-   time:new Date().toLocaleTimeString(
-     "en-PH",
-     {timeStyle:"short"}
-   )
- });
-
- notify(
-   S.user.id,
-   `${rid} was submitted successfully.`
- );
-
- notifyAdmins(
-   `New concern submitted: ${rid} - ${v("t")}`
- );
-
- log(`Submitted ${rid}`);
-
- S.draft=[];
- S.err="";
- S.tab="My reports";
-
- toast(`Submitted as ${rid}`);
- }
- 
+async function submit(){
+ if(!v("t")||!v("d")||!v("l")){S.err="Add a title, details, and a location.";return render()}
+ const d=new Date();
+ const rid="CS-"+d.getFullYear()+"-"+d.getTime().toString().slice(-6)+"-"+Math.random().toString(36).slice(2,5).toUpperCase();
+ const report={rid,title:v("t"),cat:v("c"),desc:v("d"),loc:v("l"),pr:v("p"),st:"Pending",uid:S.user.id,as:"",imgs:S.draft.slice(),hist:[["Pending",d.toLocaleDateString("en-PH",{dateStyle:"medium"})]],notes:[],date:d.toLocaleDateString("en-PH",{dateStyle:"medium"}),time:d.toLocaleTimeString("en-PH",{timeStyle:"short"})};
+ try{
+  if(API_URL!=="PASTE_YOUR_DEPLOYED_APPS_SCRIPT_WEB_APP_URL_HERE"){
+   await api("create",{rid:rid,title:report.title,category:report.cat,description:report.desc,location:report.loc,priority:report.pr,userId:report.uid,userName:S.user.name,date:d.toISOString(),time:report.time});
+  }
+  reps.unshift(report);notify(S.user.id,rid+" was submitted successfully.");notifyAdmins("New concern submitted: "+rid+" - "+report.title);log("Submitted "+rid);
+  S.draft=[];S.err="";S.tab="My reports";toast("Submitted as "+rid);
+ }catch(err){S.err="Unable to save report: "+err.message;return render()}
+}
 function modal(){const r=reps.find(x=>x.rid===S.open);if(!r)return"";const staff=isAdm()||isMt();
 const maint=users.filter(u=>u.role==="Maintenance Personnel"),rep=users.find(u=>u.id===r.uid)||{};
 return `<div class="ov" onclick="if(event.target===this){S.open=null;render()}"><div class="mod" role="dialog" aria-modal="true"><div class="row"><h2 style="flex:1">${esc(r.title)}</h2><button class="btn g sm" onclick="S.open=null;render()">Close</button></div>
@@ -283,25 +240,26 @@ ${r.imgs.length?`<div class="thumbs">${r.imgs.map(u=>`<img src="${u}" alt="Evide
 ${staff?`<h3>Update</h3><div class="row"><select id="ns" style="width:auto">${statuses.filter(s=>s.on).map(s=>`<option ${s.n===r.st?"selected":""}>${esc(s.n)}</option>`).join("")}</select><button class="btn sm" onclick="setSt('${r.rid}')">Update status</button></div>
 ${isAdm()?`<div class="row" style="margin-top:8px"><select id="as" style="width:auto"><option value="">Unassigned</option>${maint.map(m=>`<option value="${m.id}" ${m.id===r.as?"selected":""}>${esc(m.name)}</option>`).join("")}</select><button class="btn sm s" onclick="assign('${r.rid}')">Assign</button></div>`:""}
 ${isMt()?`<button class="btn sm s" style="margin-top:8px" onclick="complete('${r.rid}')">Mark repair completed</button>`:""}${isMt()?`<label for="ev">Upload repair evidence</label><input id="ev" type="file" accept="image/*" multiple onchange="evid('${r.rid}',this)">`:""}
-<h3 style="margin-top:14px">Internal notes</h3>${r.notes.map(n=>`<div class="note">${esc(n)}</div>`).join("")||`<p class="mut">No notes yet.</p>`}
+<h3 style="margin-top:14px">Internal notes</h3>${r.notes.map(n=>`<div class="note">${esc(typeof n==="string"?n:n.text||"")}</div>`).join("")||`<p class="mut">No notes yet.</p>`}
 <div class="row"><input id="nt" placeholder="Add a note or repair remark (staff only)" style="flex:1"><button class="btn sm" onclick="addNote('${r.rid}')">Add note</button></div>`:""}</div></div>`}
 function setSt(id){const s=document.getElementById("ns").value;return setTo(id,s)}
-function assign(id){const r=reps.find(x=>x.rid===id);if(!r)return;r.as=document.getElementById("as").value;if(r.as){notify(r.as,`You were assigned ${id}.`);notify(r.uid,`${id} was assigned for repair.`)}log(`Assigned ${id}`);toast("Assignment saved")}
-function addNote(id){
-
- const note=v("nt");
-
- if(!note) return;
-
- reps.find(x=>x.rid===id).notes.push(note);
-
- notifyAdmins(
-   `A note was added to ${id}`
- );
-
- log(`Note added to ${id}`);
-
- render();
+async function assign(id){
+ const r=reps.find(x=>x.rid===id);if(!r)return;
+ const assignedTo=document.getElementById("as").value;
+ try{
+  if(API_URL!=="PASTE_YOUR_DEPLOYED_APPS_SCRIPT_WEB_APP_URL_HERE"&&isAdm()&&!previewMode)await api("assign",{rid:id,assignedTo:assignedTo});
+  r.as=assignedTo;
+  if(r.as){notify(r.as,"You were assigned "+id+".");notify(r.uid,id+" was assigned for repair.")}
+  log("Assigned "+id);toast("Assignment saved");
+ }catch(err){toast("Assignment failed: "+err.message)}
+}
+async function addNote(id){
+ const note=v("nt");if(!note)return;
+ const r=reps.find(x=>x.rid===id);if(!r)return;
+ try{
+  if(API_URL!=="PASTE_YOUR_DEPLOYED_APPS_SCRIPT_WEB_APP_HERE"&&isAdm()&&!previewMode)await api("note",{rid:id,note:note});
+  r.notes.push(note);notifyAdmins("A note was added to "+id);log("Note added to "+id);render();
+ }catch(err){toast("Note could not be saved: "+err.message)}
 }
 function evid(id,i){const r=reps.find(x=>x.rid===id);if(!r)return;r.imgs.push(...[...i.files].map(f=>URL.createObjectURL(f)));toast("Evidence uploaded")}
 
@@ -320,36 +278,13 @@ function addAnn(){if(!v("at")||!v("ab"))return toast("Add a title and a message"
 function repTab(){const q=x=>'"'+String(x??"").replace(/"/g,'""')+'"';const csv=["Report ID,Reporter,Role,Title,Category,Location,Date,Priority,Status",...reps.map(r=>[r.rid,nameOf(r.uid),users.find(u=>u.id===r.uid)?.role,r.title,r.cat,r.loc,r.date,r.pr,r.st].map(q).join(","))].join("\n");
 return `<div class="card"><h3>Generate report</h3><div class="grid">${statuses.map(s=>`<div class="kpi">${badge(s.n)}<b>${reps.filter(r=>r.st===s.n).length}</b></div>`).join("")}</div><label for="csv">Spreadsheet-ready data (CSV)</label><textarea id="csv" rows="8" readonly onfocus="this.select()">${esc(csv)}</textarea><p class="mut">Select and copy this into Excel or Google Sheets. One-click PDF and Excel downloads need the backend.</p></div>`}
 function setTab(){return `<div class="card" style="max-width:560px"><h3>System settings</h3><label for="sn">School name</label><input id="sn" value="${esc(cfg.school)}" onchange="cfg.school=this.value;render()"><label><input type="checkbox" ${cfg.email?"checked":""} onchange="cfg.email=this.checked" style="width:auto"> Send email notifications</label><label><input type="checkbox" ${cfg.multi?"checked":""} onchange="cfg.multi=this.checked;render()" style="width:auto"> Allow multiple photos per report</label><p class="mut">Settings apply to this demo session only.</p></div>`}
-function setTo(id,s){
-
- const r=reps.find(x=>x.rid===id);
-
- if(!r || r.st===s) return;
-
- r.st=s;
-
- r.hist.push([
-   s,
-   new Date().toLocaleDateString(
-     "en-PH",
-     {dateStyle:"medium"}
-   )
- ]);
-
- notify(
-   r.uid,
-   `${id} is now ${s}.`
- );
-
- notifyAdmins(
-   `${id} status changed to ${s}`
- );
-
- log(`${id} → ${s}`);
-
- toast("Status updated");
-
- render();
+async function setTo(id,s){
+ const r=reps.find(x=>x.rid===id);if(!r||r.st===s)return;
+ try{
+  if(API_URL!=="PASTE_YOUR_DEPLOYED_APPS_SCRIPT_WEB_APP_URL_HERE"&&isAdm()&&!previewMode)await api("update",{rid:id,status:s});
+  r.st=s;r.hist.push([s,new Date().toLocaleDateString("en-PH",{dateStyle:"medium"})]);
+  notify(r.uid,id+" is now "+s+".");notifyAdmins(id+" status changed to "+s);log(id+" → "+s);toast("Status updated");render();
+ }catch(err){toast("Status update failed: "+err.message)}
 }
 function quickRes(id){setTo(id,"Resolved")}
 function complete(id){setTo(id,statuses.find(s=>s.n==="For Verification"&&s.on)?"For Verification":"Resolved")}
