@@ -11,9 +11,9 @@
 ## Preview this branch without merging
 Open the branch's `index.html` using GitHub HTML Preview:
 
-https://htmlpreview.github.io/?https://github.com/Civic-2/Civic-2.github.io/blob/civicsnap-complete-fix/index.html
+https://raw.githack.com/Civic-2/Civic-2.github.io/civicsnap-complete-fix/index.html
 
-This is a third-party static HTML preview, not a GitHub Pages deployment. Do not enter a real administrator key into a third-party preview service. Use the GitHub branch page to inspect the source:
+This is a third-party development preview, not a GitHub Pages deployment. Use it for visual review only; do not enter real administrator credentials there. Use the GitHub branch page to inspect the source:
 https://github.com/Civic-2/Civic-2.github.io/tree/civicsnap-complete-fix
 
 ## Connect Google Sheets
