@@ -59,7 +59,7 @@ th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--bd);white-s
 <script>
 const CATS=["Classroom Damage","Furniture Damage","Electrical Issues","Plumbing Problems","Sanitation Concerns","Safety Hazards","Campus Facility Damage","Other Concerns"];
 const PRI=["Low","Medium","High","Critical"];
-const ADMIN_EMAIL="admin@civicsnap-ibis.edu.ph"; const API_URL="PASTE_YOUR_DEPLOYED_APPS_SCRIPT_WEB_APP_URL_HERE"; let ADMIN_KEY=""; let previewMode=false; async function api(action,data={}){if(!API_URL.startsWith("https://script.google.com/macros/s/")||!API_URL.endsWith("/exec"))throw Error("Google Sheets endpoint is not configured.");const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action,...data,key:ADMIN_KEY})});const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||"Backend request failed");return j;}
+const ADMIN_EMAIL="admin@civicsnap-ibis.edu.ph"; const API_URL="PASTE_YOUR_DEPLOYED_APPS_SCRIPT_WEB_APP_URL_HERE"; let ADMIN_KEY=""; let previewMode=false; const isApiConfigured=()=>API_URL.startsWith("https://script.google.com/macros/s/")&&API_URL.endsWith("/exec"); async function api(action,data={}){if(!isApiConfigured())throw Error("Google Sheets endpoint is not configured. Replace the API_URL placeholder with your deployed Apps Script Web App URL ending in /exec.");const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action,...data,key:ADMIN_KEY})});const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||"Backend request failed");return j;}
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const now=()=>new Date().toLocaleString("en-PH",{dateStyle:"medium",timeStyle:"short"});
 let users=[
@@ -212,7 +212,7 @@ return `<table><thead><tr><th>ID</th>${isAdm()?"<th>Reporter</th><th>Role</th>":
 async function del(id){
  if(!confirm("Delete "+id+"? This is recorded in the activity log."))return;
  try{
-  if(API_URL!=="https://script.google.com/macros/s/AKfycbzEDUBoFf2Gu7G-JKK_0qurCa5_esi6InCoZISC-PmZoX9ykTtZ1aNjhjJzvj7ezzOF/exec"&&isAdm()&&!previewMode)await api("delete",{rid:id});
+  if(isApiConfigured()&&isAdm()&&!previewMode)await api("delete",{rid:id});
   reps=reps.filter(r=>r.rid!==id);log("Deleted "+id);render();
  }catch(err){toast("Delete failed: "+err.message)}
 }
@@ -229,7 +229,7 @@ async function submit(){
  const rid="CS-"+d.getFullYear()+"-"+d.getTime().toString().slice(-6)+"-"+Math.random().toString(36).slice(2,5).toUpperCase();
  const report={rid,title:v("t"),cat:v("c"),desc:v("d"),loc:v("l"),pr:v("p"),st:"Pending",uid:S.user.id,as:"",imgs:S.draft.slice(),hist:[["Pending",d.toLocaleDateString("en-PH",{dateStyle:"medium"})]],notes:[],date:d.toLocaleDateString("en-PH",{dateStyle:"medium"}),time:d.toLocaleTimeString("en-PH",{timeStyle:"short"})};
  try{
-  if(API_URL!=="https://script.google.com/macros/s/AKfycbzEDUBoFf2Gu7G-JKK_0qurCa5_esi6InCoZISC-PmZoX9ykTtZ1aNjhjJzvj7ezzOF/exec"){
+  if(isApiConfigured()){
    await api("create",{rid:rid,title:report.title,category:report.cat,description:report.desc,location:report.loc,priority:report.pr,userId:report.uid,userName:S.user.name,date:d.toISOString(),time:report.time});
   }
   reps.unshift(report);notify(S.user.id,rid+" was submitted successfully.");notifyAdmins("New concern submitted: "+rid+" - "+report.title);log("Submitted "+rid);
@@ -253,7 +253,7 @@ async function assign(id){
  const r=reps.find(x=>x.rid===id);if(!r)return;
  const assignedTo=document.getElementById("as").value;
  try{
-  if(API_URL!=="https://script.google.com/macros/s/AKfycbzEDUBoFf2Gu7G-JKK_0qurCa5_esi6InCoZISC-PmZoX9ykTtZ1aNjhjJzvj7ezzOF/exec"&&isAdm()&&!previewMode)await api("assign",{rid:id,assignedTo:assignedTo});
+  if(isApiConfigured()&&isAdm()&&!previewMode)await api("assign",{rid:id,assignedTo:assignedTo});
   r.as=assignedTo;
   if(r.as){notify(r.as,"You were assigned "+id+".");notify(r.uid,id+" was assigned for repair.")}
   log("Assigned "+id);toast("Assignment saved");
@@ -263,7 +263,7 @@ async function addNote(id){
  const note=v("nt");if(!note)return;
  const r=reps.find(x=>x.rid===id);if(!r)return;
  try{
-  if(API_URL!=="https://script.google.com/macros/s/AKfycbzEDUBoFf2Gu7G-JKK_0qurCa5_esi6InCoZISC-PmZoX9ykTtZ1aNjhjJzvj7ezzOF/exec"&&isAdm()&&!previewMode)await api("note",{rid:id,note:note});
+  if(isApiConfigured()&&isAdm()&&!previewMode)await api("note",{rid:id,note:note});
   r.notes.push(note);notifyAdmins("A note was added to "+id);log("Note added to "+id);render();
  }catch(err){toast("Note could not be saved: "+err.message)}
 }
@@ -287,7 +287,7 @@ function setTab(){return `<div class="card" style="max-width:560px"><h3>System s
 async function setTo(id,s){
  const r=reps.find(x=>x.rid===id);if(!r||r.st===s)return;
  try{
-  if(API_URL!=="https://script.google.com/macros/s/AKfycbzEDUBoFf2Gu7G-JKK_0qurCa5_esi6InCoZISC-PmZoX9ykTtZ1aNjhjJzvj7ezzOF/exec"&&isAdm()&&!previewMode)await api("update",{rid:id,status:s});
+  if(isApiConfigured()&&isAdm()&&!previewMode)await api("update",{rid:id,status:s});
   r.st=s;r.hist.push([s,new Date().toLocaleDateString("en-PH",{dateStyle:"medium"})]);
   notify(r.uid,id+" is now "+s+".");notifyAdmins(id+" status changed to "+s);log(id+" → "+s);toast("Status updated");render();
  }catch(err){toast("Status update failed: "+err.message)}
