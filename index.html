@@ -59,7 +59,7 @@ th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--bd);white-s
 <script>
 const CATS=["Classroom Damage","Furniture Damage","Electrical Issues","Plumbing Problems","Sanitation Concerns","Safety Hazards","Campus Facility Damage","Other Concerns"];
 const PRI=["Low","Medium","High","Critical"];
-const ADMIN_EMAIL="admin@civicsnap-ibis.edu.ph"; const API_URL="PASTE_YOUR_DEPLOYED_APPS_SCRIPT_WEB_APP_URL_HERE"; let ADMIN_KEY=""; let previewMode=false;
+const ADMIN_EMAIL="admin@civicsnap-ibis.edu.ph"; const API_URL="PASTE_YOUR_DEPLOYED_APPS_SCRIPT_WEB_APP_URL_HERE"; let ADMIN_KEY=""; let previewMode=false; async function api(action,data={}){if(!API_URL.startsWith("https://script.google.com/macros/s/")||!API_URL.endsWith("/exec"))throw Error("Google Sheets endpoint is not configured.");const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action,...data,key:ADMIN_KEY})});const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||"Backend request failed");return j;}
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const now=()=>new Date().toLocaleString("en-PH",{dateStyle:"medium",timeStyle:"short"});
 let users=[
@@ -97,7 +97,7 @@ const notifyAdmins=m=>{
 const toast=m=>{S.toast=m;render();setTimeout(()=>{S.toast="";render()},2200)};
 function go(v){S.view=v;S.err="";if(v==="app"){S.tab=isAdm()?"Overview":isMt()?"Assigned":"My reports"}render();scrollTo(0,0)}
 function theme(){const r=document.documentElement;const d=r.dataset.theme==="dark"||(!r.dataset.theme&&matchMedia("(prefers-color-scheme:dark)").matches);r.dataset.theme=d?"light":"dark"}
-function logout(){S.user=null;S.pending=null;go("home")}
+function logout(){S.user=null;S.pending=null;ADMIN_KEY="";go("home")}
 function nav(){return `<header class="nav"><div class="logo" onclick="go('home')"><i></i>CivicSnap</div><span class="mut">${esc(cfg.school)}</span><span class="sp"></span>
 <button class="btn g sm" onclick="theme()" aria-label="Toggle dark mode">Dark mode</button>
 ${S.user?`<span class="mut">${esc(S.user.name)} (${esc(S.user.role)})</span><button class="btn g sm" onclick="go('app')">Dashboard</button><button class="btn sm" onclick="logout()">Log out</button>`:`<button class="btn sm" onclick="S.mode='login';go('auth')">Log in</button>`}</header>`}
@@ -109,7 +109,7 @@ return `<section class="hero"><div><div class="tag">Snap. Report. Improve.</div>
 <div class="grid">${ben.map(b=>`<div class="card"><h3>${b[0]}</h3><span class="mut">${b[1]}</span></div>`).join("")}</div></section>`}
 function auth(){
 if(S.granted)return `<div class="card auth" role="status"><h2>Access Granted</h2><p>Redirecting to Administrator Dashboard...</p></div>`;
-if(S.pending)return `<div class="card auth"><h2>Administrator verification</h2><p class="mut">Step 2 of 2. Enter the Administrator Verification Code.</p><label for="ak">Administrator Verification Code</label><input id="ak" type="password" autocomplete="off"><button class="btn" style="margin-top:12px" onclick="adminKey()">Verify and continue</button>${S.err?`<div class="err">${S.err}</div>`:""}</div>`;
+if(S.pending)return `<div class="card auth"><h2>Administrator verification</h2><p class="mut">Enter the administrator key configured in Google Apps Script Project Properties.</p><label for="ak">Apps Script ADMIN_KEY</label><input id="ak" type="password" autocomplete="off"><button class="btn" style="margin-top:12px" onclick="adminKey()">Verify and connect</button>${S.err?`<div class="err">${S.err}</div>`:""}</div>`;
 const reg=S.mode==="register";
 return `<div class="card auth"><div class="tabs"><button class="${!reg?"on":""}" onclick="S.mode='login';S.err='';render()">Log in</button><button class="${reg?"on":""}" onclick="S.mode='register';S.err='';render()">Register</button></div>
 ${reg?`<label for="rn">Full name</label><input id="rn"><label for="ri">Student ID / Employee ID</label><input id="ri"><label for="rr">Role</label><select id="rr"><option>Student</option><option>Teacher</option><option>Maintenance Personnel</option></select>`:""}
@@ -119,11 +119,8 @@ ${reg?`<label for="pc">Confirm password</label><input id="pc" type="password">`:
 ${!reg?`<p><a href="#" onclick="forgot();return false">Forgot password?</a></p>`:""}${S.err?`<div class="err">${S.err}</div>`:""}
 <p class="mut">Administrator accounts are added by the system owner and cannot be registered here.</p></div>`}
 const v=id=>document.getElementById(id)?.value.trim()||"";
-function login(){const u=users.find(u=>u.email.toLowerCase()===v("em").toLowerCase()&&u.pw===document.getElementById("pw").value);
- if(!u){S.err="Email or password is incorrect.";return render()}
- if(u.role==="Administrator"){S.pending=u;S.err="";return render()}
- S.user=u;go("app")}
-function adminKey(){S.err="Configure the Google Sheets administrator connection first.";render()}
+function login(){const email=v("em").toLowerCase();if(email===ADMIN_EMAIL){S.pending={name:"System Administrator",id:"EMP-0001",email:ADMIN_EMAIL,role:"Administrator"};S.err="";return render()}const u=users.find(u=>u.email.toLowerCase()===email&&u.pw===document.getElementById("pw").value);if(!u){S.err="Email or password is incorrect.";return render()}S.user=u;go("app")}
+async function adminKey(){const key=document.getElementById("ak").value.trim();if(!key){S.err="Enter your Apps Script ADMIN_KEY.";return render()}ADMIN_KEY=key;try{const data=await api("list");reps=(data.reports||[]).map(r=>({rid:String(r.rid),title:String(r.title||""),cat:String(r.category||""),desc:String(r.description||""),loc:String(r.location||""),pr:String(r.priority||"Medium"),st:String(r.status||"Pending"),uid:String(r.userId||""),as:String(r.assignedTo||""),imgs:[],hist:typeof r.history==="string"?JSON.parse(r.history||"[]"):r.history||[],notes:typeof r.notes==="string"?JSON.parse(r.notes||"[]"):r.notes||[],date:new Date(r.date).toLocaleDateString("en-PH",{dateStyle:"medium"}),time:String(r.time||"")}));S.user=S.pending;S.pending=null;previewMode=false;go("app")}catch(e){ADMIN_KEY="";S.err=e.message;render()}}
 function register(){const pw=document.getElementById("pw").value,pc=document.getElementById("pc").value;
  if(!v("rn")||!v("ri")||!v("em"))S.err="Fill in every field.";
  else if(pw.length<8)S.err="Use a password with at least 8 characters.";
